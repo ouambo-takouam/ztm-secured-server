@@ -1,8 +1,21 @@
 const path = require('path');
 const helmet = require('helmet');
 const express = require('express');
+const passport = require('passport');
+const { Strategy } = require('passport-google-oauth20');
 
 const app = express();
+
+const config = {
+	CLIENT_ID: process.env.CLIENT_ID,
+	CLIENT_SECRET: process.env.CLIENT_SECRET,
+};
+
+const AUTH_OPTIONS = {
+	callbackURL: '/auth/google/callback',
+	clientID: config.CLIENT_ID,
+	clientSecret: config.CLIENT_SECRET,
+};
 
 function middleware(req, res, next) {
 	const isLogged = true;
@@ -16,20 +29,48 @@ function middleware(req, res, next) {
 	next();
 }
 
+function verifyCallback(accessToken, refreshToken, profile, done) {
+	console.log('Google profile', profile);
+	done(null, profile);
+}
+
+passport.use(new Strategy(AUTH_OPTIONS, verifyCallback));
+
 app.use(helmet());
 
-app.get('/auth/google', (req, res) => {});
+app.use(passport.initialize());
 
-app.get('/auth/google/callback', (req, res) => {});
+app.get(
+	'/auth/google',
+	passport.authenticate('google', {
+		scope: ['email'],
+	})
+);
+
+app.get(
+	'/auth/google/callback',
+	passport.authenticate('google', {
+		failureRedirect: '/failure',
+		successRedirect: '/',
+		session: false,
+	}),
+	(req, res) => {
+		console.log('Google called us back');
+	}
+);
 
 app.get('/auth/logout', (req, res) => {});
+
+app.get('/', (req, res) => {
+	return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
 
 app.get('/secret', middleware, (req, res) => {
 	return res.status(200).send('Secret data');
 });
 
-app.get('/', (req, res) => {
-	return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+app.get('/failure', (req, res) => {
+	return res.send('Failed to log in!');
 });
 
 module.exports = app;
