@@ -21,7 +21,7 @@ const AUTH_OPTIONS = {
 };
 
 function middleware(req, res, next) {
-	const isLogged = true;
+	const isLogged = req.isAuthenticated() && req.user;
 
 	if (!isLogged) {
 		return res.status(401).json({
@@ -39,6 +39,16 @@ function verifyCallback(accessToken, refreshToken, profile, done) {
 
 passport.use(new Strategy(AUTH_OPTIONS, verifyCallback));
 
+// save the session to cookie
+passport.serializeUser((user, done) => {
+	done(null, user.id);
+});
+
+// read the session from cookie
+passport.deserializeUser((id, done) => {
+	done(null, id);
+});
+
 app.use(helmet());
 
 app.use(
@@ -52,11 +62,12 @@ app.use(
 );
 
 app.use(passport.initialize());
+app.use(passport.session());
 
 app.get(
 	'/auth/google',
 	passport.authenticate('google', {
-		scope: ['email'],
+		scope: ['email', 'profile'],
 	})
 );
 
@@ -65,7 +76,7 @@ app.get(
 	passport.authenticate('google', {
 		failureRedirect: '/failure',
 		successRedirect: '/',
-		session: false,
+		session: true,
 	}),
 	(req, res) => {
 		console.log('Google called us back');
