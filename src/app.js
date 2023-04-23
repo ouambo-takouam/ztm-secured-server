@@ -83,7 +83,10 @@ app.get(
 	}
 );
 
-app.get('/auth/logout', (req, res) => {});
+app.get('/auth/logout', (req, res) => {
+	req.logout(); // removes req.user and clears any logged in session
+	return res.redirect('/');
+});
 
 app.get('/', (req, res) => {
 	return res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
